@@ -1,13 +1,17 @@
 # Arduino Labs
 
+[![Arduino CI](https://github.com/mikeheneka/arduino-labs/actions/workflows/arduino-ci.yml/badge.svg)](https://github.com/mikeheneka/arduino-labs/actions/workflows/arduino-ci.yml)
+
 A collection of quick experiments targeting an Arduino Uno (ATmega328P + CH340).
 
 ## Projects
 
-- `blink-basic`: onboard LED with extended duty cycle (5s on / 1s off)
-- `pwm-fade`: PWM dimming loop on digital pin 9 for an external LED or MOSFET gate
-- `serial-telemetry`: streams analog A0 readings + supply voltage over serial at 1 Hz
-- `button-alert`: interrupt-driven push-button detector publishing alert pulses on serial
+| Project | Summary |
+| --- | --- |
+| `blink-basic` | Onboard LED, 5s on / 1s off pattern |
+| `pwm-fade` | PWM sweep on D9 for external LED/MOSFET control |
+| `serial-telemetry` | A0 sampling with JSON serial output |
+| `button-alert` | Interrupt on D2, flashes LED + emits event |
 
 Each project folder contains:
 
