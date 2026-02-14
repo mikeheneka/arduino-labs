@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: arduino/setup-arduino-cli@v1
         with:
-          version: latest
+          version: 1.0.0
       - name: Install AVR core
         run: arduino-cli core install arduino:avr
       - name: Compile ${{ matrix.sketch }}
