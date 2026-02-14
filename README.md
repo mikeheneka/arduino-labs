@@ -12,6 +12,7 @@ A collection of quick experiments targeting an Arduino Uno (ATmega328P + CH340).
 | `pwm-fade` | PWM sweep on D9 for external LED/MOSFET control |
 | `serial-telemetry` | A0 sampling with JSON serial output |
 | `button-alert` | Interrupt on D2, flashes LED + emits event |
+| `tools/rust-telemetry` | Rust CLI that captures the serial telemetry sketch into CSV/SQLite |
 
 Each project folder contains:
 
@@ -33,6 +34,26 @@ Compile/upload example:
 arduino-cli compile --fqbn arduino:avr:uno blink-basic
 arduino-cli upload -p /dev/cu.usbserial-10 --fqbn arduino:avr:uno blink-basic
 ```
+
+### Rust companion (`tools/rust-telemetry`)
+
+Install Rust via `rustup` if you haven’t already, then:
+
+```bash
+cd tools/rust-telemetry
+cargo run -- --list-ports
+cargo run -- --port /dev/cu.usbserial-10 --csv telemetry.csv --sqlite telemetry.db
+```
+
+Flags:
+
+- `--port` (default `/dev/cu.usbserial-10`): serial device exposed by the Uno/CH340
+- `--baud` (default `115200`): must match the sketch
+- `--csv <file>`: append structured rows with timestamp/raw/voltage
+- `--sqlite <file>`: maintain a `readings` table for downstream dashboards
+- `--list-ports`: enumerate detected serial devices and exit
+
+The CLI streams the JSON lines emitted by `serial-telemetry`, prints them with timestamps, and optionally persists them for later plotting or ingestion.
 
 ## Roadmap
 
