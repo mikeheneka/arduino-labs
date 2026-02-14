@@ -26,6 +26,16 @@ Each project folder contains:
 - **Button telemetry**: `D2` is configured with `INPUT_PULLUP`. Touching it to GND (use a jumper or momentary switch) increments the press counter and timestamps the event that shows up in the dashboard/API.
 - **Device health**: Every sample includes `uptime_ms`, loop duration, firmware version string, and last-button delta so downstream tools know if the firmware is wedged.
 
+### Hardware + inspiration
+
+This whole repo was sparked by grabbing an **Inland UNO R3 Development Board with ATmega328P + CH340** off the shelf at Micro Center (shout-out to their wall of parts). If you want to follow along, this exact board works out of the box with the `arduino:avr:uno` core and shows up as `/dev/cu.usbserial-*` via the CH340 USB bridge.
+
+![Inland UNO R3 packaged board](assets/uno-r3-microcenter.jpg)
+
+And here’s the current Rust telemetry dashboard that ships in `tools/rust-telemetry` for visualizing the sketches in real time:
+
+![Rust telemetry dashboard screenshot](assets/dashboard.png)
+
 ## Tooling
 
 This repo assumes `arduino-cli` is installed and configured with the AVR core:
