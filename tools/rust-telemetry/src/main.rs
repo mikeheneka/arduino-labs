@@ -8,7 +8,6 @@ use std::sync::{
 use anyhow::Result;
 use clap::Parser;
 use csv::Writer;
-use ctrlc;
 use rusqlite::{Connection, params};
 
 use rust_telemetry::telemetry::{self, DEFAULT_PORT, Record, SerialStreamConfig};
