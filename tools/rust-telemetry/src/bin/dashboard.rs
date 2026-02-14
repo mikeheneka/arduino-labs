@@ -234,6 +234,35 @@ section + section {
   background: rgba(255, 255, 255, 0.02);
   border-radius: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+canvas {
+  width: 100% !important;
+}
+.timeline-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+#timeline-slider {
+  flex: 1;
+  accent-color: var(--accent);
+}
+#live-button {
+  background: var(--accent);
+  color: #071022;
+  border: none;
+  border-radius: 999px;
+  padding: 0.4rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+#slider-label {
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 </style>
 </head>
@@ -262,7 +291,12 @@ section + section {
     <section>
       <h2>Live Signals</h2>
       <div class="chart-card">
-        <canvas id="voltage-chart" height="120"></canvas>
+        <canvas id="voltage-chart" height="140"></canvas>
+        <div class="timeline-controls">
+          <button id="live-button">Jump to Live</button>
+          <input type="range" id="timeline-slider" min="0" max="0" value="0" step="1" />
+          <span id="slider-label">Live</span>
+        </div>
       </div>
     </section>
     <section>
@@ -272,11 +306,11 @@ section + section {
   </div>
 </main>
 <script>
-const voltagePoints = [];
-const vccPoints = [];
+const MAX_WINDOW = 120;
+const MAX_STORE = 1800;
+const samples = [];
 let telemetryChart = null;
-let pendingPoints = [];
-let chartTimer = null;
+let pinnedToLive = true;
 
 function formatDuration(ms) {
   if (ms == null) return '—';
@@ -287,13 +321,16 @@ function formatDuration(ms) {
   return `${hours}h ${minutes}m ${seconds}s`;
 }
 
+const slider = () => document.getElementById('timeline-slider');
+const sliderLabel = () => document.getElementById('slider-label');
+
 function ensureChart() {
   if (telemetryChart) return telemetryChart;
   const ctx = document.getElementById('voltage-chart');
   telemetryChart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: [],
+      labels: new Array(MAX_WINDOW).fill(''),
       datasets: [
         {
           label: 'Voltage',
@@ -318,10 +355,21 @@ function ensureChart() {
       ],
     },
     options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        duration: 600,
+        easing: 'easeOutCubic',
+      },
       plugins: {
         legend: {
           labels: { color: '#c8d4ff' },
         },
+        tooltip: { mode: 'index', intersect: false },
+      },
+      interaction: {
+        intersect: false,
+        mode: 'index',
       },
       scales: {
         x: {
@@ -338,31 +386,45 @@ function ensureChart() {
   return telemetryChart;
 }
 
-function pushPoint(buffer, value) {
-  const limit = 60;
-  buffer.push(value);
-  if (buffer.length > limit) buffer.shift();
+function updateChartWindow(offsetSeconds = Number(slider().value)) {
+  const chart = ensureChart();
+  const endIndex = samples.length - offsetSeconds;
+  const startIndex = Math.max(0, endIndex - MAX_WINDOW);
+  const windowSamples = samples.slice(startIndex, endIndex);
+  if (windowSamples.length === 0) {
+    chart.data.labels = new Array(MAX_WINDOW).fill('');
+    chart.data.datasets[0].data = new Array(MAX_WINDOW).fill(null);
+    chart.data.datasets[1].data = new Array(MAX_WINDOW).fill(null);
+    chart.update('none');
+    return;
+  }
+  const labels = new Array(MAX_WINDOW).fill('');
+  const voltageSeries = new Array(MAX_WINDOW).fill(null);
+  const vccSeries = new Array(MAX_WINDOW).fill(null);
+  windowSamples.forEach((sample, idx) => {
+    const target = MAX_WINDOW - windowSamples.length + idx;
+    labels[target] = sample.label;
+    voltageSeries[target] = sample.voltage;
+    vccSeries[target] = sample.vcc;
+  });
+  chart.data.labels = labels;
+  chart.data.datasets[0].data = voltageSeries;
+  chart.data.datasets[1].data = vccSeries;
+  chart.update(pinnedToLive ? 'normal' : 'none');
 }
 
-function scheduleChartUpdate() {
-  if (chartTimer) return;
-  chartTimer = setTimeout(() => {
-    const chart = ensureChart();
-    const point = pendingPoints.shift();
-    if (point) {
-      chart.data.labels.push(point.label);
-      if (chart.data.labels.length > 60) chart.data.labels.shift();
-      pushPoint(voltagePoints, point.voltage);
-      pushPoint(vccPoints, point.vcc);
-      chart.data.datasets[0].data = [...voltagePoints];
-      chart.data.datasets[1].data = vccPoints.map((v) => v ?? null);
-    }
-    chart.update('none');
-    chartTimer = null;
-    if (pendingPoints.length) {
-      scheduleChartUpdate();
-    }
-  }, 300);
+function updateSliderBounds() {
+  const sliderEl = slider();
+  const maxOffset = Math.max(0, samples.length - Math.min(samples.length, MAX_WINDOW));
+  sliderEl.max = maxOffset;
+  if (pinnedToLive) {
+    sliderEl.value = 0;
+    sliderLabel().textContent = 'Live';
+  } else {
+    const current = Math.min(Number(sliderEl.value), maxOffset);
+    sliderEl.value = current;
+    sliderLabel().textContent = current === 0 ? 'Live' : `${current}s ago`;
+  }
 }
 
 async function refresh() {
@@ -398,13 +460,32 @@ async function refresh() {
     .join('\n');
 
   const label = new Date(latestJson.timestamp).toLocaleTimeString();
-  pendingPoints.push({
-    label,
-    voltage: latestJson.voltage,
-    vcc: latestJson.vcc ?? null,
-  });
-  scheduleChartUpdate();
+  samples.push({ label, voltage: latestJson.voltage, vcc: latestJson.vcc ?? null });
+  if (samples.length > MAX_STORE) {
+    samples.shift();
+  }
+  updateSliderBounds();
+  const offset = pinnedToLive ? 0 : Number(slider().value);
+  updateChartWindow(offset);
 }
+
+function attachControls() {
+  const sliderEl = slider();
+  sliderEl.addEventListener('input', (event) => {
+    const value = Number(event.target.value);
+    pinnedToLive = value === 0;
+    sliderLabel().textContent = value === 0 ? 'Live' : `${value}s ago`;
+    updateChartWindow(value);
+  });
+  document.getElementById('live-button').addEventListener('click', () => {
+    pinnedToLive = true;
+    sliderEl.value = 0;
+    sliderLabel().textContent = 'Live';
+    updateChartWindow(0);
+  });
+}
+
+attachControls();
 setInterval(refresh, 1500);
 refresh();
 </script>
