@@ -149,45 +149,133 @@ const INDEX_HTML: &str = r#"<!doctype html>
 <head>
 <meta charset="utf-8" />
 <title>Arduino Telemetry Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-body { font-family: system-ui, sans-serif; margin: 2rem; background: #0b1221; color: #f4f4f4; }
-.card { padding: 1.5rem; border-radius: 1rem; background: #111a33; box-shadow: 0 10px 30px rgba(0,0,0,0.4); max-width: 900px; }
-h1 { margin-top: 0; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-top: 1rem; }
-.metric { background: rgba(255,255,255,0.05); border-radius: 0.75rem; padding: 1rem; }
-.metric span { display: block; font-size: 0.78rem; color: #9fb3c8; text-transform: uppercase; letter-spacing: 0.08em; }
-.metric strong { font-size: 1.5rem; color: #72e0ff; }
-pre { background: rgba(0,0,0,0.25); padding: 1rem; border-radius: 0.75rem; overflow-x: auto; }
-section + section { margin-top: 1.5rem; }
+:root {
+  color-scheme: dark;
+  --bg: radial-gradient(circle at top, #182848, #0b1221 55%);
+  --card: rgba(7, 16, 34, 0.92);
+  --accent: #72e0ff;
+  --muted: #97a4ce;
+}
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  background: var(--bg);
+  color: #f1f5ff;
+}
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 3rem;
+}
+.card {
+  background: var(--card);
+  border-radius: 1.5rem;
+  padding: 2rem;
+  box-shadow: 0 35px 80px rgba(3, 5, 20, 0.65);
+  backdrop-filter: blur(12px);
+}
+h1 {
+  margin: 0;
+  font-size: clamp(1.9rem, 3vw, 2.6rem);
+}
+section + section {
+  margin-top: 1.75rem;
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+.metric {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  min-height: 94px;
+}
+.metric span {
+  display: block;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+}
+.metric strong {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 1.55rem;
+  font-weight: 600;
+  color: var(--accent);
+  word-break: break-word;
+}
+.metric.small strong {
+  font-size: 1.2rem;
+}
+#history {
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 1rem;
+  padding: 1rem;
+  font-family: 'JetBrains Mono', 'SFMono-Regular', ui-monospace, monospace;
+  font-size: 0.86rem;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.chart-card {
+  padding: 1.2rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
 </style>
 </head>
 <body>
-<div class="card">
-  <h1>Arduino Telemetry</h1>
-  <section>
-    <div class="grid">
-      <div class="metric"><span>Voltage</span><strong id="voltage">—</strong></div>
-      <div class="metric"><span>Raw</span><strong id="raw">—</strong></div>
-      <div class="metric"><span>Supply (Vcc)</span><strong id="supply">—</strong></div>
-      <div class="metric"><span>Timestamp</span><strong id="timestamp">—</strong></div>
-    </div>
-  </section>
-  <section>
-    <h2>Device Health</h2>
-    <div class="grid">
-      <div class="metric"><span>Button Presses</span><strong id="button-count">—</strong></div>
-      <div class="metric"><span>Last Button</span><strong id="button-last">—</strong></div>
-      <div class="metric"><span>Loop Duration</span><strong id="loop">—</strong></div>
-      <div class="metric"><span>Uptime</span><strong id="uptime">—</strong></div>
-      <div class="metric"><span>Firmware</span><strong id="firmware">—</strong></div>
-    </div>
-  </section>
-  <section>
-    <h2>Recent History</h2>
-    <pre id="history">Loading…</pre>
-  </section>
-</div>
+<main>
+  <div class="card">
+    <h1>Arduino Telemetry</h1>
+    <section>
+      <div class="metrics">
+        <div class="metric"><span>Voltage</span><strong id="voltage">—</strong></div>
+        <div class="metric"><span>Raw</span><strong id="raw">—</strong></div>
+        <div class="metric"><span>Supply (Vcc)</span><strong id="supply">—</strong></div>
+        <div class="metric"><span>Timestamp</span><strong id="timestamp">—</strong></div>
+      </div>
+    </section>
+    <section>
+      <h2>Device Health</h2>
+      <div class="metrics">
+        <div class="metric"><span>Button Presses</span><strong id="button-count">—</strong></div>
+        <div class="metric"><span>Last Button</span><strong id="button-last">—</strong></div>
+        <div class="metric"><span>Loop Duration</span><strong id="loop">—</strong></div>
+        <div class="metric"><span>Uptime</span><strong id="uptime">—</strong></div>
+        <div class="metric small"><span>Firmware</span><strong id="firmware">—</strong></div>
+      </div>
+    </section>
+    <section>
+      <h2>Live Signals</h2>
+      <div class="chart-card">
+        <canvas id="voltage-chart" height="120"></canvas>
+      </div>
+    </section>
+    <section>
+      <h2>Recent History</h2>
+      <pre id="history">Loading…</pre>
+    </section>
+  </div>
+</main>
 <script>
+const voltagePoints = [];
+const vccPoints = [];
+let telemetryChart = null;
+
 function formatDuration(ms) {
   if (ms == null) return '—';
   const totalSeconds = Math.floor(ms / 1000);
@@ -195,6 +283,63 @@ function formatDuration(ms) {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
   return `${hours}h ${minutes}m ${seconds}s`;
+}
+
+function ensureChart() {
+  if (telemetryChart) return telemetryChart;
+  const ctx = document.getElementById('voltage-chart');
+  telemetryChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'Voltage',
+          data: [],
+          tension: 0.25,
+          borderColor: '#72e0ff',
+          backgroundColor: 'rgba(114, 224, 255, 0.15)',
+          fill: true,
+          pointRadius: 0,
+          borderWidth: 2,
+        },
+        {
+          label: 'Vcc',
+          data: [],
+          tension: 0.25,
+          borderColor: '#ffb86c',
+          backgroundColor: 'rgba(255, 184, 108, 0.08)',
+          fill: true,
+          pointRadius: 0,
+          borderWidth: 2,
+        },
+      ],
+    },
+    options: {
+      plugins: {
+        legend: {
+          labels: { color: '#c8d4ff' },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#6f7ca6' },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+        },
+        y: {
+          ticks: { color: '#6f7ca6' },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+        },
+      },
+    },
+  });
+  return telemetryChart;
+}
+
+function pushPoint(buffer, value) {
+  const limit = 60;
+  buffer.push(value);
+  if (buffer.length > limit) buffer.shift();
 }
 
 async function refresh() {
@@ -221,13 +366,23 @@ async function refresh() {
   const historyResp = await fetch('/api/history');
   const historyJson = await historyResp.json();
   document.getElementById('history').textContent = historyJson
-    .slice(-20)
+    .slice(-25)
     .map((item) => {
       const supply = item.vcc != null ? `${item.vcc.toFixed(3)}V` : '—';
       const btn = item.button?.count ?? 0;
       return `${item.timestamp} raw=${item.raw} voltage=${item.voltage.toFixed(3)}V vcc=${supply} button=${btn}`;
     })
     .join('\n');
+
+  const chart = ensureChart();
+  const label = new Date(latestJson.timestamp).toLocaleTimeString();
+  pushPoint(voltagePoints, latestJson.voltage);
+  pushPoint(vccPoints, latestJson.vcc ?? null);
+  chart.data.labels.push(label);
+  if (chart.data.labels.length > 60) chart.data.labels.shift();
+  chart.data.datasets[0].data = [...voltagePoints];
+  chart.data.datasets[1].data = vccPoints.map((v) => v ?? null);
+  chart.update();
 }
 setInterval(refresh, 1500);
 refresh();
