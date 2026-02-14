@@ -1,0 +1,22 @@
+name: Arduino CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        sketch: ["blink-basic", "pwm-fade", "serial-telemetry", "button-alert"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v1
+        with:
+          version: latest
+      - name: Install AVR core
+        run: arduino-cli core install arduino:avr
+      - name: Compile ${{ matrix.sketch }}
+        run: arduino-cli compile --fqbn arduino:avr:uno ${{ matrix.sketch }}
