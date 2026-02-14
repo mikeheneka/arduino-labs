@@ -275,6 +275,8 @@ section + section {
 const voltagePoints = [];
 const vccPoints = [];
 let telemetryChart = null;
+let pendingPoints = [];
+let chartTimer = null;
 
 function formatDuration(ms) {
   if (ms == null) return '—';
@@ -342,6 +344,27 @@ function pushPoint(buffer, value) {
   if (buffer.length > limit) buffer.shift();
 }
 
+function scheduleChartUpdate() {
+  if (chartTimer) return;
+  chartTimer = setTimeout(() => {
+    const chart = ensureChart();
+    const point = pendingPoints.shift();
+    if (point) {
+      chart.data.labels.push(point.label);
+      if (chart.data.labels.length > 60) chart.data.labels.shift();
+      pushPoint(voltagePoints, point.voltage);
+      pushPoint(vccPoints, point.vcc);
+      chart.data.datasets[0].data = [...voltagePoints];
+      chart.data.datasets[1].data = vccPoints.map((v) => v ?? null);
+    }
+    chart.update('none');
+    chartTimer = null;
+    if (pendingPoints.length) {
+      scheduleChartUpdate();
+    }
+  }, 300);
+}
+
 async function refresh() {
   const latest = await fetch('/api/latest');
   if (latest.status === 204) {
@@ -374,15 +397,13 @@ async function refresh() {
     })
     .join('\n');
 
-  const chart = ensureChart();
   const label = new Date(latestJson.timestamp).toLocaleTimeString();
-  pushPoint(voltagePoints, latestJson.voltage);
-  pushPoint(vccPoints, latestJson.vcc ?? null);
-  chart.data.labels.push(label);
-  if (chart.data.labels.length > 60) chart.data.labels.shift();
-  chart.data.datasets[0].data = [...voltagePoints];
-  chart.data.datasets[1].data = vccPoints.map((v) => v ?? null);
-  chart.update();
+  pendingPoints.push({
+    label,
+    voltage: latestJson.voltage,
+    vcc: latestJson.vcc ?? null,
+  });
+  scheduleChartUpdate();
 }
 setInterval(refresh, 1500);
 refresh();
