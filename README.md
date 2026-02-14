@@ -1,6 +1,7 @@
 # Arduino Labs
 
 [![Arduino CI](https://github.com/mikeheneka/arduino-labs/actions/workflows/arduino-ci.yml/badge.svg)](https://github.com/mikeheneka/arduino-labs/actions/workflows/arduino-ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A collection of quick experiments targeting an Arduino Uno (ATmega328P + CH340).
 
@@ -82,3 +83,7 @@ The CLI streams the JSON lines emitted by `serial-telemetry`, prints them with t
 1. Flesh out telemetry ingestion scripts for OpenClaw automations
 2. Add sensor-specific demos (TMP36 temp, HC-SR04 distance, etc.)
 3. Provide wiring diagrams / Fritzing exports per project
+
+## License
+
+Released under the [MIT License](LICENSE). Fork, remix, and build on it.
