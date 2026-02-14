@@ -13,9 +13,12 @@ jobs:
         sketch: ["blink-basic", "pwm-fade", "serial-telemetry", "button-alert"]
     steps:
       - uses: actions/checkout@v4
-      - uses: arduino/setup-arduino-cli@v1
-        with:
-          version: 1.4.1
+      - name: Install Arduino CLI
+        run: |
+          wget https://downloads.arduino.cc/arduino-cli/arduino-cli_1.4.1_Linux_64bit.tar.gz
+          tar -xzf arduino-cli_1.4.1_Linux_64bit.tar.gz
+          sudo mv arduino-cli_1.4.1_Linux_64bit/arduino-cli /usr/local/bin/arduino-cli
+          arduino-cli config init --additional-urls https://downloads.arduino.cc/packages/package_index.json
       - name: Install AVR core
         run: arduino-cli core install arduino:avr
       - name: Compile ${{ matrix.sketch }}
