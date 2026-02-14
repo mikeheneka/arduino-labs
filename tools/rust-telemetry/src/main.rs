@@ -50,14 +50,47 @@ impl CsvSink {
         let file = OpenOptions::new().create(true).append(true).open(path)?;
         let mut writer = Writer::from_writer(file);
         if needs_header {
-            writer.write_record(["timestamp", "raw", "voltage"])?;
+            writer.write_record([
+                "timestamp",
+                "raw",
+                "voltage",
+                "vcc",
+                "uptime_ms",
+                "loop_ms",
+                "button_count",
+                "button_last_press_delta_ms",
+                "firmware",
+            ])?;
             writer.flush()?;
         }
         Ok(Self { writer })
     }
 
     fn write(&mut self, record: &Record) -> Result<()> {
-        self.writer.serialize(record)?;
+        let row = [
+            record.timestamp.to_rfc3339(),
+            record.raw.to_string(),
+            format!("{:.3}", record.voltage),
+            record.vcc.map(|v| format!("{:.3}", v)).unwrap_or_default(),
+            record.uptime_ms.map(|v| v.to_string()).unwrap_or_default(),
+            record
+                .loop_ms
+                .map(|v| format!("{:.2}", v))
+                .unwrap_or_default(),
+            record
+                .button
+                .as_ref()
+                .map(|b| b.count.to_string())
+                .unwrap_or_default(),
+            record
+                .button
+                .as_ref()
+                .and_then(|b| b.last_press_delta_ms)
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            record.firmware.clone().unwrap_or_default(),
+        ];
+        self.writer.write_record(row)?;
         self.writer.flush()?;
         Ok(())
     }
@@ -74,16 +107,59 @@ impl SqliteSink {
             "CREATE TABLE IF NOT EXISTS readings (\n                timestamp TEXT NOT NULL,\n                raw INTEGER NOT NULL,\n                voltage REAL NOT NULL\n            )",
             [],
         )?;
+        for (name, decl) in [
+            ("vcc", "vcc REAL"),
+            ("uptime_ms", "uptime_ms INTEGER"),
+            ("loop_ms", "loop_ms REAL"),
+            ("button_count", "button_count INTEGER"),
+            (
+                "button_last_press_delta_ms",
+                "button_last_press_delta_ms INTEGER",
+            ),
+            ("firmware", "firmware TEXT"),
+        ] {
+            ensure_column(&conn, name, decl)?;
+        }
         Ok(Self { conn })
     }
 
     fn write(&self, record: &Record) -> Result<()> {
         self.conn.execute(
-            "INSERT INTO readings (timestamp, raw, voltage) VALUES (?1, ?2, ?3)",
-            params![record.timestamp.to_rfc3339(), record.raw, record.voltage],
+            "INSERT INTO readings (timestamp, raw, voltage, vcc, uptime_ms, loop_ms, button_count, button_last_press_delta_ms, firmware) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                record.timestamp.to_rfc3339(),
+                record.raw,
+                record.voltage,
+                record.vcc,
+                record.uptime_ms.map(|v| v as i64),
+                record.loop_ms,
+                record
+                    .button
+                    .as_ref()
+                    .map(|b| b.count as i64),
+                record
+                    .button
+                    .as_ref()
+                    .and_then(|b| b.last_press_delta_ms)
+                    .map(|v| v as i64),
+                record.firmware.as_deref(),
+            ],
         )?;
         Ok(())
     }
+}
+
+fn ensure_column(conn: &Connection, name: &str, decl: &str) -> Result<()> {
+    let mut stmt = conn.prepare("PRAGMA table_info(readings)")?;
+    let mut rows = stmt.query([])?;
+    while let Some(row) = rows.next()? {
+        let existing: String = row.get(1)?;
+        if existing == name {
+            return Ok(());
+        }
+    }
+    conn.execute(&format!("ALTER TABLE readings ADD COLUMN {decl}"), [])?;
+    Ok(())
 }
 
 fn main() -> Result<()> {
@@ -123,8 +199,17 @@ fn main() -> Result<()> {
     })?;
 
     telemetry::stream_records(config, shutdown.clone(), |record| {
+        let vcc_desc = record
+            .vcc
+            .map(|v| format!("{v:.2} V"))
+            .unwrap_or_else(|| "—".to_string());
+        let button_desc = record
+            .button
+            .as_ref()
+            .map(|b| format!("{}", b.count))
+            .unwrap_or_else(|| "0".to_string());
         println!(
-            "{} | raw: {:>4} | voltage: {:.3} V",
+            "{} | raw: {:>4} | voltage: {:.3} V | supply: {vcc_desc} | button count: {button_desc}",
             record.timestamp.to_rfc3339(),
             record.raw,
             record.voltage

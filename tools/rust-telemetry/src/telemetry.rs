@@ -16,6 +16,23 @@ pub const DEFAULT_PORT: &str = "/dev/cu.usbserial-10";
 pub struct TelemetryReading {
     pub raw: i32,
     pub voltage: f32,
+    #[serde(default)]
+    pub vcc: Option<f32>,
+    #[serde(default)]
+    pub uptime_ms: Option<u64>,
+    #[serde(default)]
+    pub loop_ms: Option<f32>,
+    #[serde(default)]
+    pub firmware: Option<String>,
+    #[serde(default)]
+    pub button: Option<ButtonReading>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ButtonReading {
+    pub count: u32,
+    #[serde(default)]
+    pub last_press_delta_ms: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -23,6 +40,17 @@ pub struct Record {
     pub timestamp: DateTime<Utc>,
     pub raw: i32,
     pub voltage: f32,
+    pub vcc: Option<f32>,
+    pub uptime_ms: Option<u64>,
+    pub loop_ms: Option<f32>,
+    pub firmware: Option<String>,
+    pub button: Option<ButtonStats>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct ButtonStats {
+    pub count: u32,
+    pub last_press_delta_ms: Option<i64>,
 }
 
 #[derive(Clone)]
@@ -108,6 +136,14 @@ where
                             timestamp: Utc::now(),
                             raw: parsed.raw,
                             voltage: parsed.voltage,
+                            vcc: parsed.vcc,
+                            uptime_ms: parsed.uptime_ms,
+                            loop_ms: parsed.loop_ms,
+                            firmware: parsed.firmware,
+                            button: parsed.button.map(|btn| ButtonStats {
+                                count: btn.count,
+                                last_press_delta_ms: btn.last_press_delta_ms,
+                            }),
                         };
                         handler(record)?;
                     }
