@@ -24,3 +24,15 @@ jobs:
         run: arduino-cli core install arduino:avr
       - name: Compile ${{ matrix.sketch }}
         run: arduino-cli compile --fqbn arduino:avr:uno ${{ matrix.sketch }}
+
+  rust-tooling:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: cargo fmt
+        working-directory: tools/rust-telemetry
+        run: cargo fmt --all --check
+      - name: cargo clippy
+        working-directory: tools/rust-telemetry
+        run: cargo clippy --all-targets --all-features -- -D warnings

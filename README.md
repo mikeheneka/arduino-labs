@@ -43,9 +43,10 @@ Install Rust via `rustup` if you haven’t already, then:
 cd tools/rust-telemetry
 cargo run -- --list-ports
 cargo run -- --port /dev/cu.usbserial-10 --csv telemetry.csv --sqlite telemetry.db
+cargo run --bin dashboard -- --port /dev/cu.usbserial-10 --bind 0.0.0.0:7878 --window 200
 ```
 
-Flags:
+Flags (collector CLI):
 
 - `--port` (default `/dev/cu.usbserial-10`): serial device exposed by the Uno/CH340
 - `--baud` (default `115200`): must match the sketch
@@ -53,7 +54,12 @@ Flags:
 - `--sqlite <file>`: maintain a `readings` table for downstream dashboards
 - `--list-ports`: enumerate detected serial devices and exit
 
-The CLI streams the JSON lines emitted by `serial-telemetry`, prints them with timestamps, and optionally persists them for later plotting or ingestion.
+Dashboard-specific flags:
+
+- `--bind` (default `127.0.0.1:7878`): address for the Axum HTTP server
+- `--window` (default `100`): number of recent samples to retain/serve via the API
+
+The CLI streams the JSON lines emitted by `serial-telemetry`, prints them with timestamps, and optionally persists them for later plotting or ingestion. The dashboard binary reuses the same serial stream, exposes `/api/latest`, `/api/history`, and serves a lightweight HTML card for live monitoring.
 
 ## Roadmap
 
