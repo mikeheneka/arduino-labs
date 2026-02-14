@@ -140,8 +140,7 @@ impl SqliteSink {
                 record
                     .button
                     .as_ref()
-                    .and_then(|b| b.last_press_delta_ms)
-                    .map(|v| v as i64),
+                    .and_then(|b| b.last_press_delta_ms),
                 record.firmware.as_deref(),
             ],
         )?;
